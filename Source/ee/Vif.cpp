@@ -379,6 +379,11 @@ uint32 CVif::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagInclu
 	return qwc - remainingSize;
 }
 
+void CVif::WaitComplete()
+{
+
+}
+
 bool CVif::IsWaitingForProgramEnd() const
 {
 	return (m_STAT.nVEW != 0);

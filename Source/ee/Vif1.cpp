@@ -7,6 +7,7 @@
 #include "Dmac_Channel.h"
 #include "Vpu.h"
 #include "Vif1.h"
+#include "ThreadUtils.h"
 
 #define STATE_PATH_FORMAT ("vpu/vif1_%d.xml")
 #define STATE_REGS_BASE ("BASE")
@@ -20,6 +21,43 @@ CVif1::CVif1(unsigned int number, CVpu& vpu, CGIF& gif, CINTC& intc, uint8* ram,
     : CVif(1, vpu, intc, ram, spr)
     , m_gif(gif)
 {
+	m_dmaBuffer.resize(g_dmaBufferSize);
+	m_vifThread = std::thread([this]() { ThreadProc(); });
+	Framework::ThreadUtils::SetThreadName(m_vifThread, "VIF1 Thread");
+}
+
+CVif1::~CVif1()
+{
+	m_vifThread.detach();
+}
+
+void CVif1::ThreadProc()
+{
+	uint32 readQwAmount = 0;
+	while(!m_threadDone)
+	{
+		uint32 qwAmount = 0;
+		{
+			std::unique_lock readLock{m_ringBufferMutex};
+			m_dmaBufferReadPos += readQwAmount;
+			m_dmaBufferReadPos %= g_dmaBufferSize;
+			m_dmaBufferContentsSize -= readQwAmount;
+			m_consumedDataCondVar.notify_one();
+			while(1)
+			{
+				if(m_dmaBufferContentsSize > 0) break;
+				m_hasDataCondVar.wait(readLock);
+			}
+			qwAmount = std::min<uint32>(g_dmaBufferSize - m_dmaBufferReadPos, m_dmaBufferContentsSize);
+		}
+		uint32 transferSize = qwAmount * 0x10;
+		m_stream.SetFifoParams(reinterpret_cast<uint8*>(m_dmaBuffer.data() + m_dmaBufferReadPos), transferSize);
+		ProcessPacket(m_stream);
+		uint32 newIndex = m_stream.GetRemainingDmaTransferSize();
+		uint32 discardSize = transferSize - newIndex;
+		assert((discardSize & 0x0F) == 0);
+		readQwAmount = discardSize / 0x10;
+	}
 }
 
 void CVif1::Reset()
@@ -91,8 +129,63 @@ uint32 CVif1::ReceiveDMA(uint32 address, uint32 qwc, uint32 direction, bool tagI
 	}
 	else
 	{
-		return CVif::ReceiveDMA(address, qwc, direction, tagIncluded);
+		uint8* source = nullptr;
+		uint32 size = qwc * 0x10;
+		if(address & 0x80000000)
+		{
+			source = m_spr;
+			address &= (PS2::EE_SPR_SIZE - 1);
+			assert((address + size) <= PS2::EE_SPR_SIZE);
+		}
+		else
+		{
+			source = m_ram;
+			address &= (PS2::EE_RAM_SIZE - 1);
+			assert((address + size) <= PS2::EE_RAM_SIZE);
+		}
+		uint32 availableSpace = [this]() {
+			std::unique_lock writeLock{m_ringBufferMutex};
+			return g_dmaBufferSize - m_dmaBufferContentsSize;
+		}();
+		uint32 qwToWrite = std::min<uint32>(availableSpace, qwc);
+		if(qwToWrite != 0)
+		{
+			if(tagIncluded)
+			{
+				assert(qwToWrite == 1);
+				uint128 qw = *reinterpret_cast<uint128*>(source + address);
+				qw.nD0 = 0;
+				m_dmaBuffer[m_dmaBufferWritePos] = qw;
+			}
+			else
+			{
+				uint32 firstQwSize = std::min<uint32>(g_dmaBufferSize - m_dmaBufferWritePos, qwToWrite);
+				uint32 splitQwSize = qwToWrite - firstQwSize;
+				assert(firstQwSize != 0);
+				memcpy(m_dmaBuffer.data() + m_dmaBufferWritePos, source + address, firstQwSize * 0x10);
+				if(splitQwSize != 0)
+				{
+					memcpy(m_dmaBuffer.data(), source + address + (firstQwSize * 0x10), splitQwSize * 0x10);
+				}
+			}
+			{
+				std::unique_lock writeLock{m_ringBufferMutex};
+				m_dmaBufferWritePos += qwToWrite;
+				m_dmaBufferWritePos %= g_dmaBufferSize;
+				m_dmaBufferContentsSize += qwToWrite;
+				m_hasDataCondVar.notify_one();
+			}
+		}
+		return qwToWrite;
+		//return CVif::ReceiveDMA(address, qwc, direction, tagIncluded);
 	}
+}
+
+void CVif1::WaitComplete()
+{
+	std::unique_lock ringBufferLock{m_ringBufferMutex};
+	m_consumedDataCondVar.wait(ringBufferLock, [this]() { return m_dmaBufferContentsSize == 0; });
+	assert(m_dmaBufferContentsSize == 0);
 }
 
 void CVif1::ExecuteCommand(StreamType& stream, CODE nCommand)
@@ -164,7 +257,7 @@ void CVif1::Cmd_DIRECT(StreamType& stream, CODE nCommand)
 	uint32 nSize = stream.GetAvailableReadBytes();
 	assert((nSize & 0x03) == 0);
 
-	if(nSize != 0)
+	if((nSize != 0) && m_gif.TryAcquirePath(2))
 	{
 		//Check if we have data but less than a qword
 		//If we do, we have to go inside a different path to complete a full qword

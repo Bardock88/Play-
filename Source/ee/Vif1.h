@@ -9,7 +9,7 @@ class CVif1 : public CVif
 {
 public:
 	CVif1(unsigned int, CVpu&, CGIF&, CINTC&, uint8*, uint8*);
-	virtual ~CVif1() = default;
+	virtual ~CVif1();
 
 	void Reset() override;
 	void SaveState(Framework::CZipArchiveWriter&) override;
@@ -18,6 +18,7 @@ public:
 	uint32 GetTOP() const override;
 
 	uint32 ReceiveDMA(uint32, uint32, uint32, bool) override;
+	void WaitComplete() override;
 
 private:
 	void ExecuteCommand(StreamType&, CODE) override;
@@ -26,6 +27,8 @@ private:
 	void Cmd_UNPACK(StreamType&, CODE, uint32) override;
 
 	void PrepareMicroProgram() override;
+
+	void ThreadProc();
 
 	CGIF& m_gif;
 
@@ -41,4 +44,16 @@ private:
 
 	uint8 m_directQwordBuffer[QWORD_SIZE];
 	uint32 m_directQwordBufferIndex = 0;
+
+	bool m_threadDone = false;
+	std::thread m_vifThread;
+
+	std::vector<uint128> m_dmaBuffer;
+	std::mutex m_ringBufferMutex;
+	std::condition_variable m_hasDataCondVar;
+	std::condition_variable m_consumedDataCondVar;
+	static const uint32 g_dmaBufferSize = 0x10000;
+	uint32 m_dmaBufferWritePos = 0;
+	uint32 m_dmaBufferReadPos = 0;
+	uint32 m_dmaBufferContentsSize = 0;
 };

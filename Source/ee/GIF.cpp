@@ -285,6 +285,21 @@ uint32 CGIF::ProcessImage(const uint8* memory, uint32 memorySize, uint32 address
 	return (totalLoops * 0x10);
 }
 
+void CGIF::AcquirePath(unsigned int pathIndex)
+{
+	std::unique_lock activePathLock{m_activePathMutex};
+	m_pathReleasedCondVar.wait(activePathLock, [this, pathIndex]() { return (m_activePath == 0) || (m_activePath == pathIndex); });
+	m_activePath = pathIndex;
+}
+
+bool CGIF::TryAcquirePath(unsigned int pathIndex)
+{
+	std::unique_lock activePathLock{m_activePathMutex};
+	if((m_activePath != 0) && (m_activePath != pathIndex)) return false;
+	m_activePath = pathIndex;
+	return true;
+}
+
 uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 address, uint32 end, const CGsPacketMetadata& packetMetadata)
 {
 #ifdef PROFILE
@@ -296,8 +311,15 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 	                          packetMetadata.pathIndex, address, end - address);
 #endif
 
-	assert((m_activePath == 0) || (m_activePath == packetMetadata.pathIndex));
+	//assert((m_activePath == 0) || (m_activePath == packetMetadata.pathIndex));
+	assert(m_activePath == packetMetadata.pathIndex);
 	m_signalState = SIGNAL_STATE_NONE;
+
+	auto releasePath = [this]() {
+		std::unique_lock activePathLock{m_activePathMutex};
+		m_activePath = 0;
+		m_pathReleasedCondVar.notify_one();
+	};
 
 	uint32 start = address;
 	while(address < end)
@@ -307,7 +329,7 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 			if(m_eop)
 			{
 				m_eop = false;
-				m_activePath = 0;
+				releasePath();
 				break;
 			}
 
@@ -336,7 +358,7 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 
 			if(m_regs == 0) m_regs = 0x10;
 			m_regsTemp = m_regs;
-			m_activePath = packetMetadata.pathIndex;
+			//m_activePath = packetMetadata.pathIndex;
 			continue;
 		}
 		switch(m_cmd)
@@ -368,7 +390,7 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 		if(m_eop)
 		{
 			m_eop = false;
-			m_activePath = 0;
+			releasePath();
 		}
 	}
 
@@ -394,7 +416,7 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 {
 	//This will attempt to process everything from [address, end[ even if it contains multiple GIF packets
 
-	if((m_activePath != 0) && (m_activePath != packetMetadata.pathIndex))
+	if(m_activePath != packetMetadata.pathIndex)
 	{
 		//Packet transfer already active on a different path, we can't process this one
 		return 0;
@@ -404,7 +426,7 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 	while(address < end)
 	{
 		if((m_path3Masked || (m_maskedPath3XferState == MASKED_PATH3_XFER_DONE)) &&
-		   (m_activePath == 0) && (packetMetadata.pathIndex == 3))
+		   (packetMetadata.pathIndex == 3))
 		{
 			//Going to do a PATH3 transfer, but PATH3 is masked or already transfered a single masked packet
 			break;
@@ -467,6 +489,11 @@ uint32 CGIF::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagInclu
 	{
 		assert(qwc >= 0);
 		address += 0x10;
+	}
+
+	if(!TryAcquirePath(3))
+	{
+		return 0;
 	}
 
 	address += ProcessMultiplePackets(memory, memorySize, address, end, CGsPacketMetadata(3));

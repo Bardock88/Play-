@@ -81,9 +81,7 @@ void CBasicBlock::Compile()
 	Framework::CMemStream stream;
 	{
 		static
-#ifdef AOT_BUILD_CACHE
 		    __declspec(thread)
-#endif
 		        CMipsJitter* jitter = nullptr;
 		if(jitter == nullptr)
 		{

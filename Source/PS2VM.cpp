@@ -10,6 +10,7 @@
 #include "PS2VM_Preferences.h"
 #include "ee/PS2OS.h"
 #include "ee/EeExecutor.h"
+#include "ee/Vif.h"
 #include "Ps2Const.h"
 #include "iop/Iop_SifManPs2.h"
 #include "StdStream.h"
@@ -651,7 +652,7 @@ void CPS2VM::UpdateEe()
 		m_cpuUtilisation.eeTotalTicks += executed;
 
 		m_ee->m_vpu0->Execute(m_singleStepVu0 ? 1 : executed);
-		m_ee->m_vpu1->Execute(m_singleStepVu1 ? 1 : executed);
+		//m_ee->m_vpu1->Execute(m_singleStepVu1 ? 1 : executed);
 
 		m_eeExecutionTicks -= executed;
 		m_ee->CountTicks(executed);
@@ -846,6 +847,7 @@ void CPS2VM::EmuThread()
 #ifdef PROFILE
 							CProfilerZone profilerZone(m_gsSyncProfilerZone);
 #endif
+							m_ee->m_vpu1->GetVif().WaitComplete();
 							m_ee->m_gs->SetVBlank();
 						}
 
