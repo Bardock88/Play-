@@ -2,6 +2,7 @@
 
 #include <climits>
 #include <cstring>
+#include <atomic>
 #include "Types.h"
 #include "Convertible.h"
 #include "Vpu.h"
@@ -72,6 +73,8 @@ public:
 	virtual void WaitComplete();
 
 	bool IsWaitingForProgramEnd() const;
+
+	std::atomic<bool> m_processing = {};
 
 protected:
 	enum

@@ -42,6 +42,10 @@ void CVif1::ThreadProc()
 			m_dmaBufferReadPos += readQwAmount;
 			m_dmaBufferReadPos %= g_dmaBufferSize;
 			m_dmaBufferContentsSize -= readQwAmount;
+			if(m_dmaBufferContentsSize == 0)
+			{
+				m_processing = false;
+			}
 			m_consumedDataCondVar.notify_one();
 			while(1)
 			{
@@ -173,6 +177,10 @@ uint32 CVif1::ReceiveDMA(uint32 address, uint32 qwc, uint32 direction, bool tagI
 				m_dmaBufferWritePos += qwToWrite;
 				m_dmaBufferWritePos %= g_dmaBufferSize;
 				m_dmaBufferContentsSize += qwToWrite;
+				if(m_dmaBufferContentsSize != 0)
+				{
+					m_processing = true;
+				}
 				m_hasDataCondVar.notify_one();
 			}
 		}
