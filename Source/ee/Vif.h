@@ -70,7 +70,9 @@ public:
 	virtual uint32 GetITOP() const;
 
 	virtual uint32 ReceiveDMA(uint32, uint32, uint32, bool);
-	virtual void WaitComplete();
+
+	virtual void ResumeProcessing();
+	virtual void AbortProcessing();
 
 	bool IsWaitingForProgramEnd() const;
 

@@ -66,6 +66,7 @@ public:
 	uint32 GetActivePath() const;
 	void AcquirePath(unsigned int);
 	bool TryAcquirePath(unsigned int);
+	void ReleasePath();
 
 	void SetPath3Masked(bool);
 

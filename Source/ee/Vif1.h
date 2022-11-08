@@ -18,7 +18,9 @@ public:
 	uint32 GetTOP() const override;
 
 	uint32 ReceiveDMA(uint32, uint32, uint32, bool) override;
-	void WaitComplete() override;
+	
+	void ResumeProcessing() override;
+	void AbortProcessing() override;
 
 private:
 	void ExecuteCommand(StreamType&, CODE) override;
@@ -45,7 +47,6 @@ private:
 	uint8 m_directQwordBuffer[QWORD_SIZE];
 	uint32 m_directQwordBufferIndex = 0;
 
-	bool m_threadDone = false;
 	std::thread m_vifThread;
 
 	std::vector<uint128> m_dmaBuffer;
@@ -53,6 +54,7 @@ private:
 	std::condition_variable m_hasDataCondVar;
 	std::condition_variable m_consumedDataCondVar;
 	static const uint32 g_dmaBufferSize = 0x10000;
+	bool m_dmaBufferAborted = false;
 	uint32 m_dmaBufferWritePos = 0;
 	uint32 m_dmaBufferReadPos = 0;
 	uint32 m_dmaBufferContentsSize = 0;

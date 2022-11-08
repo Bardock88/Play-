@@ -185,6 +185,9 @@ void CSubSystem::SetVpu1(std::shared_ptr<CVpu> newVpu1)
 
 void CSubSystem::Reset()
 {
+	m_gif.ReleasePath();
+	m_vpu1->GetVif().AbortProcessing();
+
 	m_os->Release();
 	m_EE.m_executor->Reset();
 
@@ -226,6 +229,8 @@ void CSubSystem::Reset()
 
 	m_statusRegisterCheckers.clear();
 	m_isIdle = false;
+
+	m_vpu1->GetVif().ResumeProcessing();
 }
 
 int CSubSystem::ExecuteCpu(int quota)
@@ -384,6 +389,9 @@ void CSubSystem::SaveState(Framework::CZipArchiveWriter& archive)
 
 void CSubSystem::LoadState(Framework::CZipArchiveReader& archive)
 {
+	m_gif.ReleasePath();
+	m_vpu1->GetVif().AbortProcessing();
+
 	m_EE.m_executor->ClearActiveBlocksInRange(0, PS2::EE_RAM_SIZE, false);
 	m_vpu0->GetContext().m_executor->ClearActiveBlocksInRange(0, PS2::MICROMEM0SIZE, false);
 	m_vpu1->GetContext().m_executor->ClearActiveBlocksInRange(0, PS2::MICROMEM1SIZE, false);
@@ -406,6 +414,8 @@ void CSubSystem::LoadState(Framework::CZipArchiveReader& archive)
 	m_timer.LoadState(archive);
 	m_gif.LoadState(archive);
 	m_os->GetLibMc2().LoadState(archive);
+
+	m_vpu1->GetVif().ResumeProcessing();
 }
 
 void CSubSystem::SetupEePageTable()

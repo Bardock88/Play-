@@ -34,7 +34,7 @@ CVif1::~CVif1()
 void CVif1::ThreadProc()
 {
 	uint32 readQwAmount = 0;
-	while(!m_threadDone)
+	while(1)
 	{
 		uint32 qwAmount = 0;
 		{
@@ -42,6 +42,10 @@ void CVif1::ThreadProc()
 			m_dmaBufferReadPos += readQwAmount;
 			m_dmaBufferReadPos %= g_dmaBufferSize;
 			m_dmaBufferContentsSize -= readQwAmount;
+			if(m_dmaBufferAborted)
+			{
+				m_dmaBufferContentsSize = 0;
+			}
 			if(m_dmaBufferContentsSize == 0)
 			{
 				m_processing = false;
@@ -189,9 +193,20 @@ uint32 CVif1::ReceiveDMA(uint32 address, uint32 qwc, uint32 direction, bool tagI
 	}
 }
 
-void CVif1::WaitComplete()
+void CVif1::ResumeProcessing()
+{
+	assert(m_dmaBufferContentsSize == 0);
+	std::unique_lock ringBufferLock{m_ringBufferMutex};
+	m_dmaBufferAborted = false;
+	m_dmaBufferContentsSize = 0;
+	m_dmaBufferReadPos = 0;
+	m_dmaBufferWritePos = 0;
+}
+
+void CVif1::AbortProcessing()
 {
 	std::unique_lock ringBufferLock{m_ringBufferMutex};
+	m_dmaBufferAborted = true;
 	m_consumedDataCondVar.wait(ringBufferLock, [this]() { return m_dmaBufferContentsSize == 0; });
 	assert(m_dmaBufferContentsSize == 0);
 }

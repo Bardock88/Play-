@@ -300,6 +300,13 @@ bool CGIF::TryAcquirePath(unsigned int pathIndex)
 	return true;
 }
 
+void CGIF::ReleasePath()
+{
+	std::unique_lock activePathLock{m_activePathMutex};
+	m_activePath = 0;
+	m_pathReleasedCondVar.notify_one();
+}
+
 uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 address, uint32 end, const CGsPacketMetadata& packetMetadata)
 {
 #ifdef PROFILE
@@ -315,12 +322,6 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 	assert(m_activePath == packetMetadata.pathIndex);
 	m_signalState = SIGNAL_STATE_NONE;
 
-	auto releasePath = [this]() {
-		std::unique_lock activePathLock{m_activePathMutex};
-		m_activePath = 0;
-		m_pathReleasedCondVar.notify_one();
-	};
-
 	uint32 start = address;
 	while(address < end)
 	{
@@ -329,7 +330,7 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 			if(m_eop)
 			{
 				m_eop = false;
-				releasePath();
+				ReleasePath();
 				break;
 			}
 
@@ -390,7 +391,7 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 		if(m_eop)
 		{
 			m_eop = false;
-			releasePath();
+			ReleasePath();
 		}
 	}
 

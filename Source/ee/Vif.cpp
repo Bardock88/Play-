@@ -383,7 +383,11 @@ uint32 CVif::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagInclu
 	return qwc - remainingSize;
 }
 
-void CVif::WaitComplete()
+void CVif::ResumeProcessing()
+{
+}
+
+void CVif::AbortProcessing()
 {
 }
 
