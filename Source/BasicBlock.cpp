@@ -80,9 +80,7 @@ void CBasicBlock::Compile()
 
 	Framework::CMemStream stream;
 	{
-		static
-		    __declspec(thread)
-		        CMipsJitter* jitter = nullptr;
+		static thread_local CMipsJitter* jitter = nullptr;
 		if(jitter == nullptr)
 		{
 			Jitter::CCodeGen* codeGen = Jitter::CreateCodeGen();
