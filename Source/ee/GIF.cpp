@@ -322,6 +322,11 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 	assert(m_activePath == packetMetadata.pathIndex);
 	m_signalState = SIGNAL_STATE_NONE;
 
+	auto flushAndReleasePath = [&]() {
+		m_gs->ProcessWriteBuffer(&packetMetadata);
+		ReleasePath();
+	};
+
 	uint32 start = address;
 	while(address < end)
 	{
@@ -330,7 +335,7 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 			if(m_eop)
 			{
 				m_eop = false;
-				ReleasePath();
+				flushAndReleasePath();
 				break;
 			}
 
@@ -359,7 +364,6 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 
 			if(m_regs == 0) m_regs = 0x10;
 			m_regsTemp = m_regs;
-			//m_activePath = packetMetadata.pathIndex;
 			continue;
 		}
 		switch(m_cmd)
@@ -391,7 +395,7 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 		if(m_eop)
 		{
 			m_eop = false;
-			ReleasePath();
+			flushAndReleasePath();
 		}
 	}
 
@@ -404,8 +408,6 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 		}
 	}
 
-	m_gs->ProcessWriteBuffer(&packetMetadata);
-
 #ifdef _DEBUG
 	CLog::GetInstance().Print(LOG_NAME, "Processed 0x%08X bytes.\r\n", address - start);
 #endif
@@ -417,12 +419,6 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 {
 	//This will attempt to process everything from [address, end[ even if it contains multiple GIF packets
 
-	if(m_activePath != packetMetadata.pathIndex)
-	{
-		//Packet transfer already active on a different path, we can't process this one
-		return 0;
-	}
-
 	uint32 start = address;
 	while(address < end)
 	{
@@ -430,6 +426,11 @@ uint32 CGIF::ProcessMultiplePackets(const uint8* memory, uint32 memorySize, uint
 		   (packetMetadata.pathIndex == 3))
 		{
 			//Going to do a PATH3 transfer, but PATH3 is masked or already transfered a single masked packet
+			break;
+		}
+
+		if(!TryAcquirePath(packetMetadata.pathIndex))
+		{
 			break;
 		}
 
@@ -490,11 +491,6 @@ uint32 CGIF::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagInclu
 	{
 		assert(qwc >= 0);
 		address += 0x10;
-	}
-
-	if(!TryAcquirePath(3))
-	{
-		return 0;
 	}
 
 	address += ProcessMultiplePackets(memory, memorySize, address, end, CGsPacketMetadata(3));

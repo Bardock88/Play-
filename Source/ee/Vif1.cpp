@@ -280,7 +280,7 @@ void CVif1::Cmd_DIRECT(StreamType& stream, CODE nCommand)
 	uint32 nSize = stream.GetAvailableReadBytes();
 	assert((nSize & 0x03) == 0);
 
-	if((nSize != 0) && m_gif.TryAcquirePath(2))
+	if(nSize != 0)
 	{
 		//Check if we have data but less than a qword
 		//If we do, we have to go inside a different path to complete a full qword
