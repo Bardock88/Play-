@@ -1,5 +1,7 @@
 #pragma once
 
+#include <thread>
+#include <mutex>
 #include "Vif.h"
 
 class CGIF;

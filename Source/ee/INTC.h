@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include "Types.h"
 #include "DMAC.h"
 #include "zip/ZipArchiveWriter.h"
