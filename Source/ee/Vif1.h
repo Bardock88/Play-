@@ -19,8 +19,10 @@ public:
 
 	uint32 ReceiveDMA(uint32, uint32, uint32, bool) override;
 	
+	void ProcessFifoWrite(uint32, uint32) override;
+
 	void ResumeProcessing() override;
-	void AbortProcessing() override;
+	void PauseProcessing() override;
 
 private:
 	void ExecuteCommand(StreamType&, CODE) override;
@@ -53,8 +55,11 @@ private:
 	std::mutex m_ringBufferMutex;
 	std::condition_variable m_hasDataCondVar;
 	std::condition_variable m_consumedDataCondVar;
+	std::condition_variable m_pauseAckCondVariable;
 	static const uint32 g_dmaBufferSize = 0x10000;
-	bool m_dmaBufferAborted = false;
+	bool m_dmaBufferPauseRq = false;
+	bool m_dmaBufferResumeRq = false;
+	bool m_dmaBufferPaused = false;
 	uint32 m_dmaBufferWritePos = 0;
 	uint32 m_dmaBufferReadPos = 0;
 	uint32 m_dmaBufferContentsSize = 0;

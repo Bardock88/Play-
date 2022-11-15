@@ -64,7 +64,6 @@ public:
 	CGSHandler* GetGsHandler();
 
 	uint32 GetActivePath() const;
-	void AcquirePath(unsigned int);
 	bool TryAcquirePath(unsigned int);
 	void ReleasePath();
 
@@ -105,7 +104,7 @@ private:
 	bool m_path3Masked = false;
 	uint32 m_activePath = 0;
 	std::mutex m_activePathMutex;
-	std::condition_variable m_pathReleasedCondVar;
+	std::mutex m_processPacketMutex;
 	uint32 m_MODE = 0;
 
 	uint16 m_loops = 0;

@@ -185,8 +185,7 @@ void CSubSystem::SetVpu1(std::shared_ptr<CVpu> newVpu1)
 
 void CSubSystem::Reset()
 {
-	m_gif.ReleasePath();
-	m_vpu1->GetVif().AbortProcessing();
+	m_vpu1->GetVif().PauseProcessing();
 
 	m_os->Release();
 	m_EE.m_executor->Reset();
@@ -389,8 +388,7 @@ void CSubSystem::SaveState(Framework::CZipArchiveWriter& archive)
 
 void CSubSystem::LoadState(Framework::CZipArchiveReader& archive)
 {
-	m_gif.ReleasePath();
-	m_vpu1->GetVif().AbortProcessing();
+	m_vpu1->GetVif().PauseProcessing();
 
 	m_EE.m_executor->ClearActiveBlocksInRange(0, PS2::EE_RAM_SIZE, false);
 	m_vpu0->GetContext().m_executor->ClearActiveBlocksInRange(0, PS2::MICROMEM0SIZE, false);

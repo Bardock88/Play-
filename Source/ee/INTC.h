@@ -33,7 +33,7 @@ public:
 	virtual ~CINTC() = default;
 
 	void Reset();
-	bool IsInterruptPending() const;
+	bool IsInterruptPending();
 
 	uint32 GetRegister(uint32);
 	void SetRegister(uint32, uint32);
@@ -44,6 +44,8 @@ public:
 	void SaveState(Framework::CZipArchiveWriter&);
 
 private:
+	std::mutex m_registerMutex;
+
 	uint32 m_INTC_STAT;
 	uint32 m_INTC_MASK;
 };

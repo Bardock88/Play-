@@ -42,10 +42,7 @@ void CVif1::ThreadProc()
 			m_dmaBufferReadPos += readQwAmount;
 			m_dmaBufferReadPos %= g_dmaBufferSize;
 			m_dmaBufferContentsSize -= readQwAmount;
-			if(m_dmaBufferAborted)
-			{
-				m_dmaBufferContentsSize = 0;
-			}
+			readQwAmount = 0;
 			if(m_dmaBufferContentsSize == 0)
 			{
 				m_processing = false;
@@ -53,8 +50,26 @@ void CVif1::ThreadProc()
 			m_consumedDataCondVar.notify_one();
 			while(1)
 			{
-				if(m_dmaBufferContentsSize > 0) break;
-				m_hasDataCondVar.wait(readLock);
+				if(m_dmaBufferPaused)
+				{
+					m_hasDataCondVar.wait(readLock, [this]() { return m_dmaBufferResumeRq; });
+					assert(m_dmaBufferResumeRq);
+					m_dmaBufferPaused = false;
+					m_dmaBufferResumeRq = false;
+					m_pauseAckCondVariable.notify_one();
+				}
+				else
+				{
+					if(m_dmaBufferPauseRq)
+					{
+						m_dmaBufferPaused = true;
+						m_dmaBufferPauseRq = false;
+						m_pauseAckCondVariable.notify_one();
+						continue;
+					}
+					if(m_dmaBufferContentsSize > 0) break;
+					m_hasDataCondVar.wait(readLock, [this]() { return (m_dmaBufferContentsSize != 0) || m_dmaBufferPauseRq; });
+				}
 			}
 			qwAmount = std::min<uint32>(g_dmaBufferSize - m_dmaBufferReadPos, m_dmaBufferContentsSize);
 		}
@@ -70,6 +85,7 @@ void CVif1::ThreadProc()
 
 void CVif1::Reset()
 {
+	assert(m_dmaBufferPaused);
 	CVif::Reset();
 	m_BASE = 0;
 	m_TOP = 0;
@@ -77,10 +93,15 @@ void CVif1::Reset()
 	m_OFST = 0;
 	m_directQwordBufferIndex = 0;
 	memset(&m_directQwordBuffer, 0, sizeof(m_directQwordBuffer));
+	m_dmaBufferContentsSize = 0;
+	m_dmaBufferReadPos = 0;
+	m_dmaBufferWritePos = 0;
+	m_processing = false;
 }
 
 void CVif1::SaveState(Framework::CZipArchiveWriter& archive)
 {
+	assert(m_dmaBufferPaused);
 	CVif::SaveState(archive);
 
 	auto path = string_format(STATE_PATH_FORMAT, m_number);
@@ -96,6 +117,7 @@ void CVif1::SaveState(Framework::CZipArchiveWriter& archive)
 
 void CVif1::LoadState(Framework::CZipArchiveReader& archive)
 {
+	assert(m_dmaBufferPaused);
 	CVif::LoadState(archive);
 
 	auto path = string_format(STATE_PATH_FORMAT, m_number);
@@ -106,6 +128,12 @@ void CVif1::LoadState(Framework::CZipArchiveReader& archive)
 	m_OFST = registerFile.GetRegister32(STATE_REGS_OFST);
 	*reinterpret_cast<uint128*>(&m_directQwordBuffer) = registerFile.GetRegister128(STATE_REGS_DIRECTQWORDBUFFER);
 	m_directQwordBufferIndex = registerFile.GetRegister32(STATE_REGS_DIRECTQWORDBUFFER_INDEX);
+
+	//TODO: Save this state
+	m_dmaBufferContentsSize = 0;
+	m_dmaBufferReadPos = 0;
+	m_dmaBufferWritePos = 0;
+	m_processing = false;
 }
 
 uint32 CVif1::GetTOP() const
@@ -193,22 +221,58 @@ uint32 CVif1::ReceiveDMA(uint32 address, uint32 qwc, uint32 direction, bool tagI
 	}
 }
 
-void CVif1::ResumeProcessing()
+void CVif1::ProcessFifoWrite(uint32 address, uint32 value)
 {
-	assert(m_dmaBufferContentsSize == 0);
-	std::unique_lock ringBufferLock{m_ringBufferMutex};
-	m_dmaBufferAborted = false;
-	m_dmaBufferContentsSize = 0;
-	m_dmaBufferReadPos = 0;
-	m_dmaBufferWritePos = 0;
+	assert(m_fifoIndex != FIFO_SIZE);
+	if(m_fifoIndex == FIFO_SIZE)
+	{
+		return;
+	}
+	uint32 index = (address & 0xF) / 4;
+	*reinterpret_cast<uint32*>(m_fifoBuffer + m_fifoIndex + index * 4) = value;
+	if(index == 3)
+	{
+		{
+			std::unique_lock writeLock{m_ringBufferMutex};
+			m_consumedDataCondVar.wait(writeLock, [this]() { return m_dmaBufferContentsSize != g_dmaBufferSize; });
+		}
+
+		m_dmaBuffer[m_dmaBufferWritePos] = *reinterpret_cast<uint128*>(m_fifoBuffer);
+		uint32 qwToWrite = 1;
+
+		{
+			std::unique_lock writeLock{m_ringBufferMutex};
+			m_dmaBufferWritePos += qwToWrite;
+			m_dmaBufferWritePos %= g_dmaBufferSize;
+			m_dmaBufferContentsSize += qwToWrite;
+			if(m_dmaBufferContentsSize != 0)
+			{
+				m_processing = true;
+			}
+			m_hasDataCondVar.notify_one();
+		}
+		m_fifoIndex = 0;
+	}
 }
 
-void CVif1::AbortProcessing()
+void CVif1::ResumeProcessing()
 {
 	std::unique_lock ringBufferLock{m_ringBufferMutex};
-	m_dmaBufferAborted = true;
-	m_consumedDataCondVar.wait(ringBufferLock, [this]() { return m_dmaBufferContentsSize == 0; });
-	assert(m_dmaBufferContentsSize == 0);
+	assert(m_dmaBufferPaused && !m_dmaBufferResumeRq && !m_dmaBufferPauseRq);
+	m_dmaBufferResumeRq = true;
+	m_hasDataCondVar.notify_one();
+	m_pauseAckCondVariable.wait(ringBufferLock, [this]() { return !m_dmaBufferPaused; });
+	assert(!m_dmaBufferResumeRq);
+}
+
+void CVif1::PauseProcessing()
+{
+	std::unique_lock ringBufferLock{m_ringBufferMutex};
+	assert(!m_dmaBufferPaused && !m_dmaBufferResumeRq && !m_dmaBufferPauseRq);
+	m_dmaBufferPauseRq = true;
+	m_hasDataCondVar.notify_one();
+	m_pauseAckCondVariable.wait(ringBufferLock, [this]() { return m_dmaBufferPaused; });
+	assert(!m_dmaBufferPauseRq);
 }
 
 void CVif1::ExecuteCommand(StreamType& stream, CODE nCommand)

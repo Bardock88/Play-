@@ -72,7 +72,7 @@ public:
 	virtual uint32 ReceiveDMA(uint32, uint32, uint32, bool);
 
 	virtual void ResumeProcessing();
-	virtual void AbortProcessing();
+	virtual void PauseProcessing();
 
 	bool IsWaitingForProgramEnd() const;
 
@@ -262,7 +262,7 @@ protected:
 		MASK_MASK = 3
 	};
 
-	void ProcessFifoWrite(uint32, uint32);
+	virtual void ProcessFifoWrite(uint32, uint32);
 
 	void ProcessPacket(StreamType&);
 	virtual void ExecuteCommand(StreamType&, CODE);

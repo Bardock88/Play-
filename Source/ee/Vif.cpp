@@ -387,7 +387,7 @@ void CVif::ResumeProcessing()
 {
 }
 
-void CVif::AbortProcessing()
+void CVif::PauseProcessing()
 {
 }
 

@@ -18,13 +18,15 @@ void CINTC::Reset()
 	m_INTC_MASK = 0;
 }
 
-bool CINTC::IsInterruptPending() const
+bool CINTC::IsInterruptPending()
 {
+	std::lock_guard registerMutexLock(m_registerMutex);
 	return (m_INTC_STAT & m_INTC_MASK) != 0;
 }
 
 uint32 CINTC::GetRegister(uint32 nAddress)
 {
+	std::lock_guard registerMutexLock(m_registerMutex);
 	switch(nAddress)
 	{
 	case INTC_STAT:
@@ -43,6 +45,7 @@ uint32 CINTC::GetRegister(uint32 nAddress)
 
 void CINTC::SetRegister(uint32 nAddress, uint32 nValue)
 {
+	std::lock_guard registerMutexLock(m_registerMutex);
 	switch(nAddress)
 	{
 	case INTC_STAT:
@@ -59,6 +62,7 @@ void CINTC::SetRegister(uint32 nAddress, uint32 nValue)
 
 void CINTC::AssertLine(uint32 nLine)
 {
+	std::lock_guard registerMutexLock(m_registerMutex);
 	m_INTC_STAT |= (1 << nLine);
 }
 

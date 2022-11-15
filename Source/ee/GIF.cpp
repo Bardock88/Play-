@@ -285,13 +285,6 @@ uint32 CGIF::ProcessImage(const uint8* memory, uint32 memorySize, uint32 address
 	return (totalLoops * 0x10);
 }
 
-void CGIF::AcquirePath(unsigned int pathIndex)
-{
-	std::unique_lock activePathLock{m_activePathMutex};
-	m_pathReleasedCondVar.wait(activePathLock, [this, pathIndex]() { return (m_activePath == 0) || (m_activePath == pathIndex); });
-	m_activePath = pathIndex;
-}
-
 bool CGIF::TryAcquirePath(unsigned int pathIndex)
 {
 	std::unique_lock activePathLock{m_activePathMutex};
@@ -304,11 +297,11 @@ void CGIF::ReleasePath()
 {
 	std::unique_lock activePathLock{m_activePathMutex};
 	m_activePath = 0;
-	m_pathReleasedCondVar.notify_one();
 }
 
 uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 address, uint32 end, const CGsPacketMetadata& packetMetadata)
 {
+	std::unique_lock processPacketMutex{m_processPacketMutex};
 #ifdef PROFILE
 	CProfilerZone profilerZone(m_gifProfilerZone);
 #endif
@@ -318,7 +311,6 @@ uint32 CGIF::ProcessSinglePacket(const uint8* memory, uint32 memorySize, uint32 
 	                          packetMetadata.pathIndex, address, end - address);
 #endif
 
-	//assert((m_activePath == 0) || (m_activePath == packetMetadata.pathIndex));
 	assert(m_activePath == packetMetadata.pathIndex);
 	m_signalState = SIGNAL_STATE_NONE;
 
