@@ -255,6 +255,46 @@ void CVif1::ProcessFifoWrite(uint32 address, uint32 value)
 	}
 }
 
+void CVif1::SetRegister(uint32 address, uint32 value)
+{
+	switch(address)
+	{
+	case VIF1_FBRST:
+		if(value & FBRST_RST)
+		{
+			PauseProcessing();
+			m_CODE <<= 0;
+			m_STAT <<= 0;
+			m_NUM = 0;
+			m_dmaBufferContentsSize = 0;
+			m_processing = false;
+			m_dmaBufferReadPos = 0;
+			m_dmaBufferWritePos = 0;
+			m_stream.Reset();
+			ResumeProcessing();
+		}
+		if(value & FBRST_FBK || value & FBRST_STP)
+		{
+			// TODO: We need to properly handle this!
+			// But I lack games which leverage it.
+			assert(0);
+		}
+		if(value & FBRST_STC)
+		{
+			m_STAT.nVSS = 0;
+			m_STAT.nVFS = 0;
+			m_STAT.nVIS = 0;
+			m_STAT.nINT = 0;
+			m_STAT.nER0 = 0;
+			m_STAT.nER1 = 0;
+		}
+		break;
+	default:
+		CVif::SetRegister(address, value);
+		break;
+	}
+}
+
 void CVif1::ResumeProcessing()
 {
 	std::unique_lock ringBufferLock{m_ringBufferMutex};

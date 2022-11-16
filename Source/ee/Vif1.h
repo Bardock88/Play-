@@ -21,6 +21,7 @@ public:
 
 	uint32 ReceiveDMA(uint32, uint32, uint32, bool) override;
 	
+	void SetRegister(uint32, uint32) override;
 	void ProcessFifoWrite(uint32, uint32) override;
 
 	void ResumeProcessing() override;

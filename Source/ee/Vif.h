@@ -61,7 +61,7 @@ public:
 
 	virtual void Reset();
 	uint32 GetRegister(uint32);
-	void SetRegister(uint32, uint32);
+	virtual void SetRegister(uint32, uint32);
 	void CountTicks(uint32);
 	virtual void SaveState(Framework::CZipArchiveWriter&);
 	virtual void LoadState(Framework::CZipArchiveReader&);
