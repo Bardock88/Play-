@@ -540,8 +540,7 @@ void CVif::ExecuteCommand(StreamType& stream, CODE nCommand)
 			return;
 		}
 		break;
-	case 0x14:
-		//MSCAL
+	case CODE_CMD_MSCAL:
 		if(ResumeDelayedMicroProgram())
 		{
 			m_STAT.nVEW = 1;
@@ -549,8 +548,7 @@ void CVif::ExecuteCommand(StreamType& stream, CODE nCommand)
 		}
 		StartDelayedMicroProgram(nCommand.nIMM * 8);
 		break;
-	case 0x15:
-		//MSCALF
+	case CODE_CMD_MSCALF:
 		//TODO: Wait for GIF PATH 1 and 2 transfers to be over
 		if(ResumeDelayedMicroProgram())
 		{
@@ -559,8 +557,7 @@ void CVif::ExecuteCommand(StreamType& stream, CODE nCommand)
 		}
 		StartMicroProgram(nCommand.nIMM * 8);
 		break;
-	case 0x17:
-		//MSCNT
+	case CODE_CMD_MSCNT:
 		if(ResumeDelayedMicroProgram())
 		{
 			m_STAT.nVEW = 1;
@@ -577,8 +574,7 @@ void CVif::ExecuteCommand(StreamType& stream, CODE nCommand)
 	case CODE_CMD_STCOL:
 		Cmd_STCOL(stream, nCommand);
 		break;
-	case 0x4A:
-		//MPG
+	case CODE_CMD_MPG:
 		Cmd_MPG(stream, nCommand);
 		break;
 	default:
