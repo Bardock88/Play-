@@ -20,7 +20,7 @@ public:
 	uint32 GetTOP() const override;
 
 	uint32 ReceiveDMA(uint32, uint32, uint32, bool) override;
-	
+
 	void SetRegister(uint32, uint32) override;
 	void ProcessFifoWrite(uint32, uint32) override;
 
