@@ -546,7 +546,7 @@ void CVif::ExecuteCommand(StreamType& stream, CODE nCommand)
 			m_STAT.nVEW = 1;
 			return;
 		}
-		StartDelayedMicroProgram(nCommand.nIMM * 8);
+		StartMicroProgram(nCommand.nIMM * 8);
 		break;
 	case CODE_CMD_MSCALF:
 		//TODO: Wait for GIF PATH 1 and 2 transfers to be over
