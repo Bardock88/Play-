@@ -674,7 +674,7 @@ uint32 CSubSystem::Vu1IoPortWriteHandler(uint32 address, uint32 value)
 	switch(address)
 	{
 	case CVpu::VU_ADDR_XGKICK:
-		m_vpu1->ProcessXgKick(value);
+		m_vpu1->GetVif().ProcessXgKick(value);
 		break;
 	default:
 		CLog::GetInstance().Warn(LOG_NAME, "Wrote an unhandled VU1 IO port (0x%08X, 0x%08X).\r\n",

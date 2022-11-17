@@ -285,6 +285,12 @@ uint32 CGIF::ProcessImage(const uint8* memory, uint32 memorySize, uint32 address
 	return (totalLoops * 0x10);
 }
 
+uint32 CGIF::GetActivePath()
+{
+	std::unique_lock activePathLock{m_activePathMutex};
+	return m_activePath;
+}
+
 bool CGIF::TryAcquirePath(unsigned int pathIndex)
 {
 	std::unique_lock activePathLock{m_activePathMutex};
@@ -557,11 +563,6 @@ void CGIF::SetRegister(uint32 address, uint32 value)
 CGSHandler* CGIF::GetGsHandler()
 {
 	return m_gs;
-}
-
-uint32 CGIF::GetActivePath() const
-{
-	return m_activePath;
 }
 
 void CGIF::SetPath3Masked(bool masked)

@@ -347,12 +347,18 @@ void CVif::LoadState(Framework::CZipArchiveReader& archive)
 
 uint32 CVif::GetTOP() const
 {
-	throw std::exception();
+	assert(false);
+	return 0;
 }
 
 uint32 CVif::GetITOP() const
 {
 	return m_ITOP;
+}
+
+void CVif::ProcessXgKick(uint32)
+{
+	assert(false);
 }
 
 uint32 CVif::ReceiveDMA(uint32 address, uint32 qwc, uint32 unused, bool tagIncluded)
@@ -443,6 +449,20 @@ void CVif::ProcessPacket(StreamType& stream)
 			//Command is waiting for micro-program to end.
 			ExecuteCommand(stream, m_CODE);
 			continue;
+		}
+		if(m_STAT.nVGW == 1)
+		{
+			//VIF1 only - Check any pending GIF transfers
+			ExecuteCommand(stream, m_CODE);
+			if(m_STAT.nVGW == 1)
+			{
+				//Something's still pending... abort for now
+				break;
+			}
+			else
+			{
+				continue;
+			}
 		}
 
 		if(m_STAT.nVIS)

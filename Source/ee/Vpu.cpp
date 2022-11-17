@@ -23,7 +23,6 @@ CVpu::CVpu(unsigned int number, const VPUINIT& vpuInit, CGIF& gif, CINTC& intc, 
     , m_vuMem(vpuInit.vuMem)
     , m_vuMemSize((number == 0) ? PS2::VUMEM0SIZE : PS2::VUMEM1SIZE)
     , m_ctx(vpuInit.context)
-    , m_gif(gif)
     , m_vuProfilerZone(CProfiler::GetInstance().RegisterZone("VU"))
 #ifdef DEBUGGER_INCLUDED
     , m_microMemMiniState(new uint8[(number == 0) ? PS2::MICROMEM0SIZE : PS2::MICROMEM1SIZE])
@@ -192,40 +191,4 @@ void CVpu::InvalidateMicroProgram()
 void CVpu::InvalidateMicroProgram(uint32 start, uint32 end)
 {
 	m_ctx->m_executor->ClearActiveBlocksInRange(start, end, false);
-}
-
-void CVpu::ProcessXgKick(uint32 address)
-{
-	address &= 0x3FF;
-	address *= 0x10;
-
-	CGsPacketMetadata metadata;
-	metadata.pathIndex = 1;
-#ifdef DEBUGGER_INCLUDED
-	metadata.vuMemPacketAddress = address;
-	metadata.vpu1Top = GetVuTopMiniState();
-	metadata.vpu1Itop = GetVuItopMiniState();
-	memcpy(&metadata.vu1State, &GetVuMiniState(), sizeof(MIPSSTATE));
-	memcpy(metadata.vuMem1, GetVuMemoryMiniState(), PS2::VUMEM1SIZE);
-	memcpy(metadata.microMem1, GetMicroMemoryMiniState(), PS2::MICROMEM1SIZE);
-#endif
-
-	if(m_gif.TryAcquirePath(1))
-	{
-		address += m_gif.ProcessSinglePacket(GetVuMemory(), PS2::VUMEM1SIZE, address, PS2::VUMEM1SIZE, metadata);
-		if((address == PS2::VUMEM1SIZE) && (m_gif.GetActivePath() == 1))
-		{
-			address = 0;
-			address += m_gif.ProcessSinglePacket(GetVuMemory(), PS2::VUMEM1SIZE, address, PS2::VUMEM1SIZE, metadata);
-		}
-		assert(m_gif.GetActivePath() == 0);
-	}
-	else
-	{
-		//TODO: Save packet and execute it later
-	}
-
-#ifdef DEBUGGER_INCLUDED
-	SaveMiniState();
-#endif
 }

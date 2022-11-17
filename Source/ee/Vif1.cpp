@@ -141,6 +141,69 @@ uint32 CVif1::GetTOP() const
 	return m_TOP;
 }
 
+void CVif1::FlushPendingXgKicks()
+{
+	while(m_pendingXgKicksSize != 0)
+	{
+		if(m_gif.TryAcquirePath(1))
+		{
+			m_pendingXgKicksSize--;
+			auto& pendingXgKick = m_pendingXgKicks[m_pendingXgKicksSize];
+			ProcessXgKickGifPacket(pendingXgKick.memory, pendingXgKick.address, pendingXgKick.metadata);
+		}
+		else
+		{
+			break;
+		}
+	}
+}
+
+void CVif1::ProcessXgKickGifPacket(const uint8* vuMemory, uint32 address, const CGsPacketMetadata& metadata)
+{
+	address += m_gif.ProcessSinglePacket(vuMemory, PS2::VUMEM1SIZE, address, PS2::VUMEM1SIZE, metadata);
+	if((address == PS2::VUMEM1SIZE) && (m_gif.GetActivePath() == 1))
+	{
+		address = 0;
+		address += m_gif.ProcessSinglePacket(vuMemory, PS2::VUMEM1SIZE, address, PS2::VUMEM1SIZE, metadata);
+	}
+	assert(m_gif.GetActivePath() == 0);
+}
+
+void CVif1::ProcessXgKick(uint32 address)
+{
+	address &= 0x3FF;
+	address *= 0x10;
+
+	CGsPacketMetadata metadata;
+	metadata.pathIndex = 1;
+#ifdef DEBUGGER_INCLUDED
+	metadata.vuMemPacketAddress = address;
+	metadata.vpu1Top = GetVuTopMiniState();
+	metadata.vpu1Itop = GetVuItopMiniState();
+	memcpy(&metadata.vu1State, &GetVuMiniState(), sizeof(MIPSSTATE));
+	memcpy(metadata.vuMem1, GetVuMemoryMiniState(), PS2::VUMEM1SIZE);
+	memcpy(metadata.microMem1, GetMicroMemoryMiniState(), PS2::MICROMEM1SIZE);
+#endif
+
+	if(m_gif.TryAcquirePath(1))
+	{
+		ProcessXgKickGifPacket(m_vpu.GetVuMemory(), address, metadata);
+	}
+	else
+	{
+		assert(m_pendingXgKicksSize != MAX_PENDING_XGKICKS);
+		auto& pendingXgKick = m_pendingXgKicks[m_pendingXgKicksSize];
+		pendingXgKick.address = address;
+		memcpy(pendingXgKick.memory, m_vpu.GetVuMemory(), PS2::VUMEM1SIZE);
+		pendingXgKick.metadata = std::move(metadata);
+		m_pendingXgKicksSize++;
+	}
+
+#ifdef DEBUGGER_INCLUDED
+	SaveMiniState();
+#endif
+}
+
 uint32 CVif1::ReceiveDMA(uint32 address, uint32 qwc, uint32 direction, bool tagIncluded)
 {
 	if(direction == Dmac::CChannel::CHCR_DIR_TO)
@@ -320,6 +383,19 @@ void CVif1::ExecuteCommand(StreamType& stream, CODE nCommand)
 #ifdef _DEBUG
 	DisassembleCommand(nCommand);
 #endif
+	if(m_pendingXgKicksSize != 0)
+	{
+		FlushPendingXgKicks();
+		if(m_pendingXgKicksSize != 0)
+		{
+			m_STAT.nVGW = 1;
+			return;
+		}
+		else
+		{
+			m_STAT.nVGW = 0;
+		}
+	}
 	switch(nCommand.nCMD)
 	{
 	case 0x02:

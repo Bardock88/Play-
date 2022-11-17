@@ -18,6 +18,7 @@ public:
 	void LoadState(Framework::CZipArchiveReader&) override;
 
 	uint32 GetTOP() const override;
+	void ProcessXgKick(uint32) override;
 
 	uint32 ReceiveDMA(uint32, uint32, uint32, bool) override;
 
@@ -37,6 +38,16 @@ private:
 
 	void ThreadProc();
 
+	void FlushPendingXgKicks();
+	void ProcessXgKickGifPacket(const uint8*, uint32, const CGsPacketMetadata&);
+
+	struct PENDING_XGKICK
+	{
+		CGsPacketMetadata metadata;
+		uint32 address;
+		uint8 memory[PS2::VUMEM1SIZE];
+	};
+
 	CGIF& m_gif;
 
 	uint32 m_BASE;
@@ -47,6 +58,11 @@ private:
 	enum
 	{
 		QWORD_SIZE = 0x10,
+	};
+
+	enum
+	{
+		MAX_PENDING_XGKICKS = 0x10,
 	};
 
 	uint8 m_directQwordBuffer[QWORD_SIZE];
@@ -66,4 +82,6 @@ private:
 	uint32 m_dmaBufferWritePos = 0;
 	uint32 m_dmaBufferReadPos = 0;
 	uint32 m_dmaBufferContentsSize = 0;
+	uint32 m_pendingXgKicksSize = 0;
+	PENDING_XGKICK m_pendingXgKicks[MAX_PENDING_XGKICKS];
 };

@@ -63,8 +63,6 @@ public:
 	void InvalidateMicroProgram();
 	void InvalidateMicroProgram(uint32, uint32);
 
-	void ProcessXgKick(uint32);
-
 #ifdef DEBUGGER_INCLUDED
 	void SaveMiniState();
 	const MIPSSTATE& GetVuMiniState() const;
@@ -84,7 +82,6 @@ protected:
 	uint8* m_vuMem = nullptr;
 	uint32 m_vuMemSize = 0;
 	CMIPS* m_ctx = nullptr;
-	CGIF& m_gif;
 	VifPtr m_vif;
 
 #ifdef DEBUGGER_INCLUDED
