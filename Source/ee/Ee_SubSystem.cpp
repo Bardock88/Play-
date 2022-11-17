@@ -161,6 +161,7 @@ CSubSystem::CSubSystem(uint8* iopRam, CIopBios& iopBios)
 
 CSubSystem::~CSubSystem()
 {
+	m_vpu1->GetVif().PauseProcessing();
 	m_EE.m_executor->Reset();
 	delete m_os;
 	framework_aligned_free(m_ram);
