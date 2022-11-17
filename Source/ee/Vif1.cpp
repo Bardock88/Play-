@@ -344,12 +344,14 @@ void CVif1::SetRegister(uint32 address, uint32 value)
 		}
 		if(value & FBRST_STC)
 		{
+			PauseProcessing();
 			m_STAT.nVSS = 0;
 			m_STAT.nVFS = 0;
 			m_STAT.nVIS = 0;
 			m_STAT.nINT = 0;
 			m_STAT.nER0 = 0;
 			m_STAT.nER1 = 0;
+			ResumeProcessing();
 		}
 		break;
 	default:
