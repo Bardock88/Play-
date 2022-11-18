@@ -521,15 +521,12 @@ void CVif::ExecuteCommand(StreamType& stream, CODE nCommand)
 	}
 	switch(nCommand.nCMD)
 	{
-	case 0:
-		//NOP
+	case CODE_CMD_NOP:
 		break;
-	case 0x01:
-		//STCYCL
+	case CODE_CMD_STCYCL:
 		m_CYCLE <<= nCommand.nIMM;
 		break;
-	case 0x04:
-		//ITOP
+	case CODE_CMD_ITOP:
 		if(ResumeDelayedMicroProgram())
 		{
 			m_STAT.nVEW = 1;
@@ -537,8 +534,7 @@ void CVif::ExecuteCommand(StreamType& stream, CODE nCommand)
 		}
 		m_ITOPS = nCommand.nIMM & 0x3FF;
 		break;
-	case 0x05:
-		//STMOD
+	case CODE_CMD_STMOD:
 		m_MODE = nCommand.nIMM & 0x03;
 		break;
 	case CODE_CMD_MARK:
