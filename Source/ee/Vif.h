@@ -2,7 +2,6 @@
 
 #include <climits>
 #include <cstring>
-#include <atomic>
 #include "Types.h"
 #include "Convertible.h"
 #include "Vpu.h"
@@ -60,7 +59,7 @@ public:
 	virtual ~CVif() = default;
 
 	virtual void Reset();
-	uint32 GetRegister(uint32);
+	virtual uint32 GetRegister(uint32);
 	virtual void SetRegister(uint32, uint32);
 	void CountTicks(uint32);
 	virtual void SaveState(Framework::CZipArchiveWriter&);
@@ -77,21 +76,19 @@ public:
 
 	bool IsWaitingForProgramEnd() const;
 
-	std::atomic<bool> m_processing = {};
-
 protected:
 	enum
 	{
 		CODE_CMD_NOP = 0x00,
 		CODE_CMD_STCYCL = 0x01,
 		CODE_CMD_OFFSET = 0x02, //VIF1 only
-		CODE_CMD_BASE = 0x03, //VIF1 only
+		CODE_CMD_BASE = 0x03,   //VIF1 only
 		CODE_CMD_ITOP = 0x04,
 		CODE_CMD_STMOD = 0x05,
 		CODE_CMD_MSKPATH3 = 0x06, //VIF1 only
 		CODE_CMD_MARK = 0x07,
 		CODE_CMD_FLUSHE = 0x10,
-		CODE_CMD_FLUSH = 0x11, //VIF1 only
+		CODE_CMD_FLUSH = 0x11,  //VIF1 only
 		CODE_CMD_FLUSHA = 0x13, //VIF1 only
 		CODE_CMD_MSCAL = 0x14,
 		CODE_CMD_MSCALF = 0x15,
@@ -100,7 +97,7 @@ protected:
 		CODE_CMD_STROW = 0x30,
 		CODE_CMD_STCOL = 0x31,
 		CODE_CMD_MPG = 0x4A,
-		CODE_CMD_DIRECT = 0x50, //VIF1 only
+		CODE_CMD_DIRECT = 0x50,   //VIF1 only
 		CODE_CMD_DIRECTHL = 0x51, //VIF1 only
 	};
 

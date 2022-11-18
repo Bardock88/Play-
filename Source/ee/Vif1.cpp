@@ -206,81 +206,74 @@ void CVif1::ProcessXgKick(uint32 address)
 
 uint32 CVif1::ReceiveDMA(uint32 address, uint32 qwc, uint32 direction, bool tagIncluded)
 {
+	uint8* source = nullptr;
+	uint32 size = qwc * 0x10;
+	if(address & 0x80000000)
+	{
+		source = m_spr;
+		address &= (PS2::EE_SPR_SIZE - 1);
+		assert((address + size) <= PS2::EE_SPR_SIZE);
+	}
+	else
+	{
+		source = m_ram;
+		address &= (PS2::EE_RAM_SIZE - 1);
+		assert((address + size) <= PS2::EE_RAM_SIZE);
+	}
 	if(direction == Dmac::CChannel::CHCR_DIR_TO)
 	{
-		uint8* source = nullptr;
-		uint32 size = qwc * 0x10;
-		if(address & 0x80000000)
-		{
-			source = m_spr;
-			address &= (PS2::EE_SPR_SIZE - 1);
-			assert((address + size) <= PS2::EE_SPR_SIZE);
-		}
-		else
-		{
-			source = m_ram;
-			address &= (PS2::EE_RAM_SIZE - 1);
-			assert((address + size) <= PS2::EE_RAM_SIZE);
-		}
 		auto gs = m_gif.GetGsHandler();
 		gs->ReadImageData(source + address, size);
 		return qwc;
 	}
 	else
 	{
-		uint8* source = nullptr;
-		uint32 size = qwc * 0x10;
-		if(address & 0x80000000)
+		uint32 qwToWrite = 0;
 		{
-			source = m_spr;
-			address &= (PS2::EE_SPR_SIZE - 1);
-			assert((address + size) <= PS2::EE_SPR_SIZE);
+			std::unique_lock writeLock{m_ringBufferMutex};
+			m_consumedDataCondVar.wait(writeLock, [this, qwc]() { return (g_dmaBufferSize - m_dmaBufferContentsSize) >= qwc; });
+			qwToWrite = qwc;
+		}
+		if(tagIncluded)
+		{
+			assert(qwToWrite == 1);
+			uint128 qw = *reinterpret_cast<uint128*>(source + address);
+			qw.nD0 = 0;
+#ifdef _DEBUG
+			for(uint32 i = 2; i < 4; i++)
+			{
+				auto code = make_convertible<CODE>(qw.nV[i]);
+				assert(
+				    (code.nCMD == CODE_CMD_NOP) ||
+				    (code.nCMD == CODE_CMD_DIRECT) ||
+				    (code.nCMD == CODE_CMD_DIRECTHL));
+			}
+#endif
+			m_dmaBuffer[m_dmaBufferWritePos] = qw;
 		}
 		else
 		{
-			source = m_ram;
-			address &= (PS2::EE_RAM_SIZE - 1);
-			assert((address + size) <= PS2::EE_RAM_SIZE);
+			uint32 firstQwSize = std::min<uint32>(g_dmaBufferSize - m_dmaBufferWritePos, qwToWrite);
+			uint32 splitQwSize = qwToWrite - firstQwSize;
+			assert(firstQwSize != 0);
+			memcpy(m_dmaBuffer.data() + m_dmaBufferWritePos, source + address, firstQwSize * 0x10);
+			if(splitQwSize != 0)
+			{
+				memcpy(m_dmaBuffer.data(), source + address + (firstQwSize * 0x10), splitQwSize * 0x10);
+			}
 		}
-		uint32 availableSpace = [this]() {
-			std::unique_lock writeLock{m_ringBufferMutex};
-			return g_dmaBufferSize - m_dmaBufferContentsSize;
-		}();
-		uint32 qwToWrite = std::min<uint32>(availableSpace, qwc);
-		if(qwToWrite != 0)
 		{
-			if(tagIncluded)
+			std::unique_lock writeLock{m_ringBufferMutex};
+			m_dmaBufferWritePos += qwToWrite;
+			m_dmaBufferWritePos %= g_dmaBufferSize;
+			m_dmaBufferContentsSize += qwToWrite;
+			if(m_dmaBufferContentsSize != 0)
 			{
-				assert(qwToWrite == 1);
-				uint128 qw = *reinterpret_cast<uint128*>(source + address);
-				qw.nD0 = 0;
-				m_dmaBuffer[m_dmaBufferWritePos] = qw;
+				m_processing = true;
 			}
-			else
-			{
-				uint32 firstQwSize = std::min<uint32>(g_dmaBufferSize - m_dmaBufferWritePos, qwToWrite);
-				uint32 splitQwSize = qwToWrite - firstQwSize;
-				assert(firstQwSize != 0);
-				memcpy(m_dmaBuffer.data() + m_dmaBufferWritePos, source + address, firstQwSize * 0x10);
-				if(splitQwSize != 0)
-				{
-					memcpy(m_dmaBuffer.data(), source + address + (firstQwSize * 0x10), splitQwSize * 0x10);
-				}
-			}
-			{
-				std::unique_lock writeLock{m_ringBufferMutex};
-				m_dmaBufferWritePos += qwToWrite;
-				m_dmaBufferWritePos %= g_dmaBufferSize;
-				m_dmaBufferContentsSize += qwToWrite;
-				if(m_dmaBufferContentsSize != 0)
-				{
-					m_processing = true;
-				}
-				m_hasDataCondVar.notify_one();
-			}
+			m_hasDataCondVar.notify_one();
 		}
 		return qwToWrite;
-		//return CVif::ReceiveDMA(address, qwc, direction, tagIncluded);
 	}
 }
 
@@ -318,6 +311,19 @@ void CVif1::ProcessFifoWrite(uint32 address, uint32 value)
 	}
 }
 
+uint32 CVif1::GetRegister(uint32 address)
+{
+	uint32 result = CVif::GetRegister(address);
+	if(address == VIF1_STAT)
+	{
+		if(m_processing)
+		{
+			result |= 0x0F000000;
+		}
+	}
+	return result;
+}
+
 void CVif1::SetRegister(uint32 address, uint32 value)
 {
 	switch(address)
@@ -326,6 +332,8 @@ void CVif1::SetRegister(uint32 address, uint32 value)
 		if(value & FBRST_RST)
 		{
 			PauseProcessing();
+			assert(m_gif.GetActivePath() != 1);
+			assert(m_gif.GetActivePath() != 2);
 			m_CODE <<= 0;
 			m_STAT <<= 0;
 			m_NUM = 0;

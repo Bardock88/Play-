@@ -108,10 +108,6 @@ uint32 CVif::GetRegister(uint32 address)
 			}
 		}
 		result = m_STAT;
-		if(m_processing)
-		{
-			result |= 0x0F000000;
-		}
 		if(m_STAT.nFDR != 0)
 		{
 			//When FDR is set, it usually means the game is trying to

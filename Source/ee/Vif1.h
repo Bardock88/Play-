@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <mutex>
+#include <atomic>
 #include "Vif.h"
 
 class CGIF;
@@ -22,7 +23,9 @@ public:
 
 	uint32 ReceiveDMA(uint32, uint32, uint32, bool) override;
 
+	uint32 GetRegister(uint32) override;
 	void SetRegister(uint32, uint32) override;
+
 	void ProcessFifoWrite(uint32, uint32) override;
 
 	void ResumeProcessing() override;
@@ -62,7 +65,7 @@ private:
 
 	enum
 	{
-		MAX_PENDING_XGKICKS = 0x10,
+		MAX_PENDING_XGKICKS = 0x40,
 	};
 
 	uint8 m_directQwordBuffer[QWORD_SIZE];
@@ -75,7 +78,8 @@ private:
 	std::condition_variable m_hasDataCondVar;
 	std::condition_variable m_consumedDataCondVar;
 	std::condition_variable m_pauseAckCondVariable;
-	static const uint32 g_dmaBufferSize = 0x10000;
+	std::atomic<bool> m_processing = {};
+	static const uint32 g_dmaBufferSize = 0x100000;
 	bool m_dmaBufferPauseRq = false;
 	bool m_dmaBufferResumeRq = false;
 	bool m_dmaBufferPaused = false;

@@ -285,7 +285,7 @@ uint32 CGIF::ProcessImage(const uint8* memory, uint32 memorySize, uint32 address
 	return (totalLoops * 0x10);
 }
 
-uint32 CGIF::GetActivePath()
+unsigned int CGIF::GetActivePath()
 {
 	std::unique_lock activePathLock{m_activePathMutex};
 	return m_activePath;

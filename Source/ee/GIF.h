@@ -63,7 +63,7 @@ public:
 
 	CGSHandler* GetGsHandler();
 
-	uint32 GetActivePath();
+	unsigned int GetActivePath();
 	bool TryAcquirePath(unsigned int);
 	void ReleasePath();
 
