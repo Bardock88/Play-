@@ -470,8 +470,9 @@ bool CPS2VM::SaveVMState(const fs::path& statePath)
 
 		archive.Write(stateStream);
 	}
-	catch(...)
+	catch(const std::exception& ex)
 	{
+		printf("Failed to save state: %s\r\n", ex.what());
 		return false;
 	}
 
