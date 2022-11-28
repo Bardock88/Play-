@@ -178,11 +178,11 @@ void CVif1::ProcessXgKick(uint32 address)
 	metadata.pathIndex = 1;
 #ifdef DEBUGGER_INCLUDED
 	metadata.vuMemPacketAddress = address;
-	metadata.vpu1Top = GetVuTopMiniState();
-	metadata.vpu1Itop = GetVuItopMiniState();
-	memcpy(&metadata.vu1State, &GetVuMiniState(), sizeof(MIPSSTATE));
-	memcpy(metadata.vuMem1, GetVuMemoryMiniState(), PS2::VUMEM1SIZE);
-	memcpy(metadata.microMem1, GetMicroMemoryMiniState(), PS2::MICROMEM1SIZE);
+	metadata.vpu1Top = m_vpu.GetVuTopMiniState();
+	metadata.vpu1Itop = m_vpu.GetVuItopMiniState();
+	memcpy(&metadata.vu1State, &m_vpu.GetVuMiniState(), sizeof(MIPSSTATE));
+	memcpy(metadata.vuMem1, m_vpu.GetVuMemoryMiniState(), PS2::VUMEM1SIZE);
+	memcpy(metadata.microMem1, m_vpu.GetMicroMemoryMiniState(), PS2::MICROMEM1SIZE);
 #endif
 
 	if(m_gif.TryAcquirePath(1))
@@ -200,7 +200,7 @@ void CVif1::ProcessXgKick(uint32 address)
 	}
 
 #ifdef DEBUGGER_INCLUDED
-	SaveMiniState();
+	m_vpu.SaveMiniState();
 #endif
 }
 
