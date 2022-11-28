@@ -367,6 +367,8 @@ void CSubSystem::NotifyVBlankEnd()
 
 void CSubSystem::SaveState(Framework::CZipArchiveWriter& archive)
 {
+	m_vpu1->GetVif().PauseProcessing();
+
 	archive.InsertFile(new CMemoryStateFile(STATE_EE, &m_EE.m_State, sizeof(MIPSSTATE)));
 	archive.InsertFile(new CMemoryStateFile(STATE_VU0, &m_VU0.m_State, sizeof(MIPSSTATE)));
 	archive.InsertFile(new CMemoryStateFile(STATE_VU1, &m_VU1.m_State, sizeof(MIPSSTATE)));
@@ -385,6 +387,8 @@ void CSubSystem::SaveState(Framework::CZipArchiveWriter& archive)
 	m_timer.SaveState(archive);
 	m_gif.SaveState(archive);
 	m_os->GetLibMc2().SaveState(archive);
+
+	m_vpu1->GetVif().ResumeProcessing();
 }
 
 void CSubSystem::LoadState(Framework::CZipArchiveReader& archive)
