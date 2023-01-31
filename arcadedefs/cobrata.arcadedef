@@ -9,6 +9,7 @@
 	{
 		"name": "cbr1-ha.chd"
 	},
+	"eeFrequencyScale": [4, 3],
 	"boot": "ac0:CBRLOAD",
 	"patches":
 	[
@@ -16,11 +17,6 @@
 			"address": "0x001003CC",
 			"value": "0x0805DDB0",
 			"description": "Wait for Vblank after signaling Vblank sema"
-		},
-		{
-			"address": "0x002FABAC",
-			"value": "0x0",
-			"description": "Disable clock check"
 		}
 	]
 }

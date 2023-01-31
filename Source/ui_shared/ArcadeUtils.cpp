@@ -30,6 +30,8 @@ struct ARCADE_MACHINE_DEF
 	std::string dongleFileName;
 	std::string cdvdFileName;
 	std::string hddFileName;
+	uint32 eeFreqScaleNumerator = 1;
+	uint32 eeFreqScaleDenominator = 1;
 	std::string boot;
 	std::vector<PATCH> patches;
 };
@@ -76,6 +78,15 @@ ARCADE_MACHINE_DEF ReadArcadeMachineDefinition(const fs::path& arcadeDefPath)
 	if(defJson.contains("hdd"))
 	{
 		def.hddFileName = defJson["hdd"]["name"];
+	}
+	if(defJson.contains("eeFrequencyScale"))
+	{
+		auto eeFreqScaleArray = defJson["eeFrequencyScale"];
+		if(eeFreqScaleArray.is_array() && (eeFreqScaleArray.size() >= 2))
+		{
+			def.eeFreqScaleNumerator = eeFreqScaleArray[0];
+			def.eeFreqScaleDenominator = eeFreqScaleArray[1];
+		}
 	}
 	def.boot = defJson["boot"];
 	if(defJson.contains("patches"))
@@ -174,6 +185,8 @@ void PrepareArcadeEnvironment(CPS2VM* virtualMachine, const ARCADE_MACHINE_DEF& 
 			virtualMachine->m_pad->InsertListener(namcoArcadeModule.get());
 		}
 	}
+	
+	virtualMachine->SetEeFrequencyScale(def.eeFreqScaleNumerator, def.eeFreqScaleDenominator);
 }
 
 void ApplyPatchesFromArcadeDefinition(CPS2VM* virtualMachine, const ARCADE_MACHINE_DEF& def)
