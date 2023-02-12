@@ -198,6 +198,9 @@ uint32 CSIF::ReceiveDMA6(uint32 nSrcAddr, uint32 nSize, uint32 nDstAddr, bool is
 
 		switch(hdr->commandId)
 		{
+		case 3:
+			Cmd_AcFlash(hdr);
+			break;
 		case 0x80000000:
 			Cmd_SetEERecvAddr(hdr);
 			break;
@@ -488,6 +491,21 @@ void CSIF::LoadState_RequestEnd(const CStructFile& file, SIFRPCREQUESTEND& reque
 /////////////////////////////////////////////////////////
 //SIF Commands
 /////////////////////////////////////////////////////////
+
+void CSIF::Cmd_AcFlash(const SIFCMDHEADER* hdr)
+{
+	struct ACFLASH_REPLY
+	{
+		SIFCMDHEADER header;
+		uint32 val[3];
+	};
+	static_assert(sizeof(ACFLASH_REPLY) == 0x1C, "sizeof(ACFLASH_REPLY) must be 28 bytes.");
+
+	ACFLASH_REPLY reply = {};
+	reply.header.commandId = 4;
+	reply.header.packetSize = sizeof(ACFLASH_REPLY);
+	SendPacket(&reply, sizeof(ACFLASH_REPLY));
+}
 
 void CSIF::Cmd_SetEERecvAddr(const SIFCMDHEADER* hdr)
 {

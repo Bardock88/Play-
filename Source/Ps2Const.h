@@ -5,7 +5,7 @@ namespace PS2
 {
 	enum
 	{
-		EE_RAM_SIZE = 0x02000000
+		EE_RAM_SIZE = 0x04000000
 	};
 
 	enum
@@ -35,7 +35,7 @@ namespace PS2
 
 	enum
 	{
-		IOP_RAM_SIZE = 0x00200000
+		IOP_RAM_SIZE = 0x00400000
 	};
 
 	enum

@@ -84,6 +84,7 @@ private:
 	static void LoadState_RpcCall(const CStructFile&, SIFRPCCALL&);
 	static void LoadState_RequestEnd(const CStructFile&, SIFRPCREQUESTEND&);
 
+	void Cmd_AcFlash(const SIFCMDHEADER*);
 	void Cmd_SetEERecvAddr(const SIFCMDHEADER*);
 	void Cmd_Initialize(const SIFCMDHEADER*);
 	void Cmd_Bind(const SIFCMDHEADER*);

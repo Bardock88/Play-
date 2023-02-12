@@ -4,7 +4,7 @@
 #include "string_format.h"
 
 #define LOG_NAME_FORMAT ("iop_spu2_core_%d")
-#define SPU_BASE_SAMPLING_RATE (48000)
+#define SPU_BASE_SAMPLING_RATE (64000) //1.33x
 
 using namespace Iop;
 using namespace Iop::Spu2;

@@ -306,7 +306,7 @@ namespace Iop
 		private:
 			enum
 			{
-				SRC_SAMPLING_RATE = 48000,
+				SRC_SAMPLING_RATE = 64000 //1.33x,
 			};
 
 			uint32 m_srcSampleIdx = 0;
